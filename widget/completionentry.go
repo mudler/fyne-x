@@ -56,6 +56,13 @@ func (c *CompletionEntry) SetOptions(itemList []string) {
 	c.Refresh()
 }
 
+func (c *CompletionEntry) createNavigableList() {
+	if c.navigableList == nil {
+		c.navigableList = newNavigableList(
+			c.Options, &c.Entry, c.setTextFromMenu, c.HideCompletion, c.OnMenuNavigation)
+	}
+}
+
 // ShowCompletion displays the completion menu
 func (c *CompletionEntry) ShowCompletion() {
 	if c.pause {
@@ -66,10 +73,8 @@ func (c *CompletionEntry) ShowCompletion() {
 		return
 	}
 
-	if c.navigableList == nil {
-		c.navigableList = newNavigableList(
-			c.Options, &c.Entry, c.setTextFromMenu, c.HideCompletion, c.OnMenuNavigation)
-	}
+	c.createNavigableList()
+
 	holder := fyne.CurrentApp().Driver().CanvasForObject(c)
 
 	if c.popupMenu == nil {
@@ -80,16 +85,23 @@ func (c *CompletionEntry) ShowCompletion() {
 	holder.Focus(c.navigableList)
 }
 
+func (c *CompletionEntry) ItemHeight() float32 {
+	if c.itemHeight == 0 {
+		c.createNavigableList()
+
+		// set item height to cache
+		c.itemHeight = c.navigableList.CreateItem().MinSize().Height
+	}
+	return c.itemHeight
+}
+
 // calculate the max size to make the popup to cover everything below the entry
 func (c *CompletionEntry) maxSize() fyne.Size {
 	cnv := fyne.CurrentApp().Driver().CanvasForObject(c)
 
-	if c.itemHeight == 0 {
-		// set item height to cache
-		c.itemHeight = c.navigableList.CreateItem().MinSize().Height
-	}
+	itemHeight := c.ItemHeight()
 
-	listheight := float32(len(c.Options))*(c.itemHeight+2*theme.Padding()+theme.SeparatorThicknessSize()) + 2*theme.Padding()
+	listheight := float32(len(c.Options))*(itemHeight+2*theme.Padding()+theme.SeparatorThicknessSize()) + 2*theme.Padding()
 	canvasSize := cnv.Size()
 	entrySize := c.Size()
 	if canvasSize.Height > listheight {
