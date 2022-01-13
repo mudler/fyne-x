@@ -15,6 +15,7 @@ type CompletionEntry struct {
 	pause            bool
 	itemHeight       float32
 	OnMenuNavigation func(widget.ListItemID)
+	OnTypeEvent      func(event *fyne.KeyEvent)
 }
 
 // NewCompletionEntry creates a new CompletionEntry which creates a popup menu that responds to keystrokes to navigate through the items without losing the editing ability of the text input.
@@ -59,7 +60,7 @@ func (c *CompletionEntry) SetOptions(itemList []string) {
 func (c *CompletionEntry) createNavigableList() {
 	if c.navigableList == nil {
 		c.navigableList = newNavigableList(
-			c.Options, &c.Entry, c.setTextFromMenu, c.HideCompletion, c.OnMenuNavigation)
+			c.Options, &c.Entry, c.setTextFromMenu, c.HideCompletion, c.OnMenuNavigation, c.OnTypeEvent)
 	}
 }
 
@@ -137,14 +138,23 @@ type navigableList struct {
 	hide            func()
 	navigating      bool
 	items           []string
+	keyEv           func(event *fyne.KeyEvent)
 }
 
-func newNavigableList(items []string, entry *widget.Entry, setTextFromMenu func(string), hide func(), navigate func(widget.ListItemID)) *navigableList {
+func newNavigableList(
+	items []string,
+	entry *widget.Entry,
+	setTextFromMenu func(string),
+	hide func(),
+	navigate func(widget.ListItemID),
+	keyEv func(*fyne.KeyEvent),
+) *navigableList {
 	n := &navigableList{
 		entry:           entry,
 		selected:        -1,
 		setTextFromMenu: setTextFromMenu,
 		hide:            hide,
+		keyEv:           keyEv,
 		items:           items,
 	}
 
@@ -186,7 +196,17 @@ func (n *navigableList) SetOptions(items []string) {
 	n.selected = -1
 }
 
+func (c *CompletionEntry) TypedKey(event *fyne.KeyEvent) {
+	if c.OnTypeEvent != nil {
+		c.OnTypeEvent(event)
+	}
+	c.Entry.TypedKey(event)
+}
+
 func (n *navigableList) TypedKey(event *fyne.KeyEvent) {
+	if n.keyEv != nil {
+		n.keyEv(event)
+	}
 	switch event.Name {
 	case fyne.KeyDown:
 		if n.selected < len(n.items)-1 {
